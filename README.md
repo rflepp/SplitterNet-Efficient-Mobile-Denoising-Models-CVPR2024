@@ -9,6 +9,8 @@
 #### 1. Overview
 This is the official repository for the CVPR2024 paper "Real-World Mobile Image Denoising Dataset with Efficient Baselines". It includes the presented SplitterNet as well as other state of the art efficient denoising networks, optimized for the mobile usage with .TFLite. A simple U-Net, the winning models of the [MAI2021](https://arxiv.org/pdf/2105.08629v1.pdf) challenge by NOAHTCV and Megvii, the newly proposed SplitterNet and MoDeNet as well as some other implementations are included.
 
+The presented MIDD dataset can be found here: [Coming Soon]
+
 <br/>
 
 #### 2. Prerequisites
@@ -21,7 +23,7 @@ This is the official repository for the CVPR2024 paper "Real-World Mobile Image 
 
 #### 3. First steps
 
-- Add the wanted dataset. If the dataset is not cropped into patches yet, create those using the ```data_preprocessing > cropping.ipynb``` file. The dataset needs to have a form consisting of two subfolders ```/original_patches/``` and ```/denoised_patches/```. Where the original_patches are the noisy images and the denoised_patches the ground truth noise-free images.
+- Add the wanted dataset. If the dataset is not cropped into patches yet, create those using the ```data_preprocessing > cropping_parallel.py``` file. Please make sure to see the data loading function to set your paths and the needed file pairing algorithm. For MIDD you can have thee configuration of one noisy to one denoised or 20 noiosy to the same denoised image.
 - Add the wanted testset. It needs to have a form with two subfolders ```/denoised/``` and ```/original/```
 - Add the ABSPATH variable in the run_evaluation.sh and run_training.sh file to the wanted folder.
 - Let TensorFlow XLA know the CUDA path if needed using ```XLA_FLAGS=--xla_gpu_cuda_data_dir=```
@@ -33,7 +35,7 @@ This is the official repository for the CVPR2024 paper "Real-World Mobile Image 
 The models can be trained as follows:
 
 ```bash
-./run_training.sh MoDeNet 20 16 [1,1,1,1] [1,1,1,1] path/to/train/image/patches/ path/to/test/images/ 5 path/to/pretrained/model 
+./run_training.sh SplitterNet 20 16 [1,1,1,1] [1,1,1,1] path/to/train/image/patches/ path/to/test/images/ 5 path/to/pretrained/model 
 ```
 
 where SplitterNet is the chosen denosing model, 20 is the number of epochs, 16 the batch size, the [1,1,1,1] [1,1,1,1] the number of encoder respectively decoder steps and the number of blocks for each step, followed by the path to the training patches as well as to the test images, by 5 the number of filters is given computed to the power of two, lastly the path to a the pretrained model is given.
@@ -74,18 +76,19 @@ Containing the respectve log files as well as a snapshot of the parent folder.
 >```evaluate.py```        &nbsp; - &nbsp; the evaluation logic <br/>
 >```dataloader.py```      &nbsp; - &nbsp; the data loading logic <br/>
 >```converter.py```       &nbsp; - &nbsp; code for converting the model to TensorFlow Lite. <br/>
+>```environment.txt```    &nbsp; - &nbsp; environment details. <br/>
+>```run_training.sh```    &nbsp; - &nbsp; commands to train on a SLURM cluster. <br/>
+>```run_evaluation.sh```  &nbsp; - &nbsp; commands to evaluate on a SLURM cluster. <br/>
+
 
 Inside the models folder you find the following models:
+>```SplitterNet.py```             &nbsp; - &nbsp; The new SplitterNet. <br/>
 >```Dynamic_PlainNet.py```        &nbsp; - &nbsp; Dynamic implementation of the PlainNet as proposed in [NAFNet paper](https://arxiv.org/pdf/2204.04676v4.pdf) <br/>
 >```Dynamic_UNet_simple.py```     &nbsp; - &nbsp; Dynamic implementation of a simple UNet <br/>
 >```Megvii.py```                  &nbsp; - &nbsp; The Model proposed by Megvii research in [MAI2021](https://arxiv.org/pdf/2105.08629v1.pdf) <br/>
->```MoDeNet_Distance_Concat.py``` &nbsp; - &nbsp; MoDeNet with Concatenated Distance Information at the input. <br/>
->```MoDeNet_LDA.py```             &nbsp; - &nbsp; MoDeNet using local distance attention instead of spatial attention <br/>
->```MoDeNet_prediction.py```      &nbsp; - &nbsp; MoDeNet including a clipping function. Used for loading the weights of the trained model and predicting. <br/>
 >```MoDeNet.py```                 &nbsp; - &nbsp; The new MoDeNet, also in a dynamical implementation <br/>
 >```NOAHTCV.py```                 &nbsp; - &nbsp; The Model proposed by NOAHTCV in [MAI2021](https://arxiv.org/pdf/2105.08629v1.pdf) <br/>
 >```PlainNet.py```                &nbsp; - &nbsp; Implementation of the PlainNet as proposed in [NAFNet paper](https://arxiv.org/pdf/2204.04676v4.pdf) <br/>
->```SplitterNet.py```             &nbsp; - &nbsp; The new SplitterNet. <br/>
 
 The term dynamic refers to the fact that you are able to give specific numbers of blocks per U-Net level as well as dictate the number of levels, you can pass the configurations of e.g. ```[2,2,4,8], [2,2,2,2]``` or ```[1,1], [1,1]``` to build custom models.
 
@@ -95,8 +98,10 @@ The term dynamic refers to the fact that you are able to give specific numbers o
 
 In order to convert a model to TensorFlow Lite, add the model code or load the model in the ```converter.py``` file and call it as follows:
 ```bash
-CUDA_VISIBLE_DEVICES="" python converter.py
+python converter.py
 ```
+
+You may need to set ```CUDA_VISIBLE_DEVICES="" ```.
 
 <br/>
 
@@ -104,11 +109,13 @@ CUDA_VISIBLE_DEVICES="" python converter.py
 
 For running the code locally, which is not recommended use:
 ```bash
-CUDA_VISIBLE_DEVICES="" python train.py MoDeNet 20 16 None [1,1,1,1] [1,1,1,1] path/to/train/image/patches path/to/test/images/ path/to/test/images/ 5 path/to/pretrained/model 5 None
+python train.py MoDeNet 20 16 None [1,1,1,1] [1,1,1,1] path/to/train/image/patches path/to/test/images/ path/to/test/images/ 5 path/to/pretrained/model 5 None
 ```
 
 and for evaluation:
 ```bash
-CUDA_VISIBLE_DEVICES="" python evaluate.py /path/to/model/ evaluate_saved_model /path/to/test/data
+python evaluate.py /path/to/model/ evaluate_saved_model /path/to/test/data
 ```
+
+You may need to set ```CUDA_VISIBLE_DEVICES="" ```.
 
