@@ -15,12 +15,10 @@ def get_datasets(original_images_path, denoised_images_path, batch_size, val_spl
     denoised_images = []
 
     for directory in os.listdir(original_images_path):
-        if directory == ".DS_Store":
-            continue
         logging.info(f"Loading: {directory}")
-        if original_images_path == "/Users/romanflepp/Desktop/sanity_dataset/patches/": # You need to define the folder of your one to one MIDD
+        if original_images_path == "/your/path/patches/": # You need to define the folder of your one to one MIDD
             original_images_itter, denoised_images_itter = pair_images_simple(original_images_path+directory+"/original_patches/", denoised_images_path+directory+"/denoised_patches/")
-        elif original_images_path == "one/to/20/path": # You need to define the folder of your full MIDD (20 noisy to 1 GT)
+        elif original_images_path == "/your/path/one/to/20/dataset": # You need to define the folder of your full MIDD (20 noisy to 1 GT)
             original_images_itter, denoised_images_itter = pair_images(original_images_path+directory+"/original_20_patches/", denoised_images_path+directory+"/denoised_patches/")
         else:
             original_images = sorted(glob(os.path.join(original_images_path, "*")))

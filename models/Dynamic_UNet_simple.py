@@ -41,5 +41,4 @@ def DYNUnet(input_shape=(None, None, 3), enc_blocks=[2,2,2,2], dec_blocks=[2,2,2
     x = Conv2D(3, kernel_size=3, padding='same', activation=None)(x)
     model = tf.keras.models.Model(inputs=[input], outputs=[x])
 
-    print(model.summary())
     return model

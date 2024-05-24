@@ -26,10 +26,8 @@ def evaluate_saved_model(saved_model_path, test_set_dir):
     original_images = []
     denoised_images = []
 
-    if test_set_dir == "/Users/romanflepp/Desktop/sanity_dataset/test_set/":
+    if test_set_dir == "/your/path/test_set/":
         for directory in os.listdir(test_set_dir):
-            if directory == ".DS_Store":
-                continue
             original_images_itter, denoised_images_itter = pair_images(test_set_dir+directory+"/test_set/original/", test_set_dir+directory+"/test_set/denoised/")
             original_images.append(original_images_itter)
             denoised_images.append(denoised_images_itter)
@@ -48,7 +46,6 @@ def evaluate_saved_model(saved_model_path, test_set_dir):
 
     # Iterate over the files and print their names
     for i, file_name in enumerate(original_images):
-        print(file_name)
         if 'blurry' in file_name:
             continue
         try:

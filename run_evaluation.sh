@@ -10,8 +10,8 @@ NGPUS=1
 
 # Copy code files
 timestamp=$(date +%Y-%m-%d_%H-%M-%S)
-ABSPATH=/home/rflepp/
-FOLDER=./scratch_second/outputs/evaluate_${timestamp}
+ABSPATH=/your/path/
+FOLDER=./your/path/evaluate_${timestamp}
 mkdir -p $ABSPATH/$FOLDER
 
 export XLA_FLAGS=--xla_gpu_cuda_data_dir=/itet-stor/rflepp/net_scratch/conda/lib
@@ -24,8 +24,6 @@ cat << EOT > "$ABSPATH/$FOLDER/train.sh"
 #SBATCH --output=$ABSPATH/$FOLDER/TRAIN-%x.%j.out
 #SBATCH --error=$ABSPATH/$FOLDER/TRAIN-%x.%j.err
 #SBATCH --gres=gpu:$NGPUS
-#SBATCH --mem-per-gpu=20g
-#SBATCH --constraint='titan_xp|geforce_gtx_titan_x|geforce_rtx_2080_ti|geforce_gtx_1080_ti|titan_x'
 #SBATCH --job-name=$NAME
 #SBATCH --mail-type=BEGIN,END,FAIL
 

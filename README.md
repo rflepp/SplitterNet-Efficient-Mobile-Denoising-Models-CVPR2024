@@ -7,8 +7,7 @@
 <br/>
 
 #### 1. Overview
-
-This framework includes the loading of different datasets as well as several denoising models. These models are optimized for mobile usage. The models include a simple U-Net, the winning models of the [MAI2021](https://arxiv.org/pdf/2105.08629v1.pdf) challenge by NOAHTCV and Megvii, the newly proposed SplitterNet and MoDeNet as well as some other implementations.
+This is the official repository for the CVPR2024 paper "Real-World Mobile Image Denoising Dataset with Efficient Baselines". It includes the presented SplitterNet as well as other state of the art efficient denoising networks, optimized for the mobile usage with .TFLite. A simple U-Net, the winning models of the [MAI2021](https://arxiv.org/pdf/2105.08629v1.pdf) challenge by NOAHTCV and Megvii, the newly proposed SplitterNet and MoDeNet as well as some other implementations are included.
 
 <br/>
 

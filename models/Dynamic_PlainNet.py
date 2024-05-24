@@ -52,7 +52,6 @@ def DYNUnet(input_shape=(None, None, 3), enc_blocks=[1,1,1,1], dec_blocks=[1,1,1
     x = layers.Conv2D(3, kernel_size=3, padding='same', activation=None)(x)
     model = tf.keras.models.Model(inputs=[input], outputs=[x])
 
-    print(model.summary())
     return model
 
 class PixelShuffle(tf.keras.layers.Layer):
