@@ -2,7 +2,7 @@
 
 <br/>
 
-<img src="https://github.com/rflepp/Efficient-Mobile-Image-Denoising-Models/images/SplitterNet_arch.png"/>
+<img src="https://github.com/rflepp/SplitterNet-Efficient-Mobile-Denoising-Models-CVPR2024/blob/main/images/SplitterNet_arch.png"/>
 
 <br/>
 
@@ -32,7 +32,7 @@ The presented MIDD dataset can be found here: [Coming Soon]
 
 #### 4. Training the models
 
-<img src="https://github.com/rflepp/Efficient-Mobile-Image-Denoising-Models/images/center_comparison_MIDD_trained_models.png"/>
+<img src="https://github.com/rflepp/Efficient-Mobile-Image-Denoising-Models/blob/main/images/center_comparison_MIDD_trained_models.png"/>
 
 The models can be trained as follows:
 
