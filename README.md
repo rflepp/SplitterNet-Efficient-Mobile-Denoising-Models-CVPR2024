@@ -1,4 +1,4 @@
-## Baseline Models for Mobile Image Denoising Applications
+## SplitterNet and more Mobile Image Denoising Deep Learning Models
 
 <br/>
 
