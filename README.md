@@ -32,8 +32,6 @@ The presented MIDD dataset can be found here: [Coming Soon]
 
 #### 4. Training the models
 
-<img src="https://github.com/rflepp/Efficient-Mobile-Image-Denoising-Models/blob/main/images/center_comparison_MIDD_trained_models.png"/>
-
 The models can be trained as follows:
 
 ```bash
