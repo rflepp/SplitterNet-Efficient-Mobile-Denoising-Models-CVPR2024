@@ -23,9 +23,9 @@ The presented MIDD dataset can be found here: [Coming Soon]
 
 #### 3. First steps
 
-- Add the wanted dataset. If the dataset is not cropped into patches yet, create those using the ```data_preprocessing > cropping_parallel.py``` file. Please make sure to see the data loading function to set your paths and the needed file pairing algorithm. For MIDD you can have thee configuration of one noisy to one denoised or 20 noiosy to the same denoised image.
+- Add the wanted dataset. If the dataset is not cropped into patches yet, create those using the ```data_preprocessing > cropping_parallel.py``` file. Please make sure to see the data loading function to set your paths and the needed file pairing algorithm. For MIDD you can have the configuration of one noisy to one denoised or 20 noisy to the same denoised image.
 - Add the wanted testset. It needs to have a form with two subfolders ```/denoised/``` and ```/original/```
-- Add the ABSPATH variable in the run_evaluation.sh and run_training.sh file to the wanted folder.
+- Add the ABSPATH variable in the run_evaluation.sh and run_training.sh files to the wanted folder.
 - Let TensorFlow XLA know the CUDA path if needed using ```XLA_FLAGS=--xla_gpu_cuda_data_dir=```
 
 <br/>
@@ -38,8 +38,8 @@ The models can be trained as follows:
 ./run_training.sh SplitterNet 20 16 [1,1,1,1] [1,1,1,1] path/to/train/image/patches/ path/to/test/images/ 5 path/to/pretrained/model 
 ```
 
-where SplitterNet is the chosen denosing model, 20 is the number of epochs, 16 the batch size, the [1,1,1,1] [1,1,1,1] the number of encoder respectively decoder steps and the number of blocks for each step, followed by the path to the training patches as well as to the test images, by 5 the number of filters is given computed to the power of two, lastly the path to a the pretrained model is given.
-If there is no pretrained model, use the value None.
+where SplitterNet is the chosen denosing model, 20 is the number of epochs, 16 the batch size, the [1,1,1,1] [1,1,1,1] the number of encoder respectively decoder steps and the number of blocks for each step, followed by the path to the training patches as well as to the test images, by 5 the number of filters is given computed to the power of two, lastly the path to the pre-trained model is given.
+If there is no pre-trained model, use the value None.
 
 </br>
 
@@ -53,7 +53,7 @@ The final model is automatically evaluated at the end of the training process. I
 
 #### 5. Folder Creation
 
-When training the models as shown above, there is a seperate directory that is created each time with a name following this convention: 
+When training the models as shown above, there is a separate directory that is created each time with a name following this convention: 
 ```bash
 ${Model Name}_${timestamp}_e${Epochs}_bs${Batch Size}_fe${Filter Number}
 ```
@@ -64,7 +64,7 @@ When manually evaluating as shown above a directory with the following naming co
 evaluation_${timestamp}
 
 ```
-Containing the respectve log files as well as a snapshot of the parent folder.
+Contains the respective log files as well as a snapshot of the parent folder.
 
 #### 6. File Description
 
@@ -81,7 +81,7 @@ Containing the respectve log files as well as a snapshot of the parent folder.
 >```run_evaluation.sh```  &nbsp; - &nbsp; commands to evaluate on a SLURM cluster. <br/>
 
 
-Inside the models folder you find the following models:
+Inside the models folder, you find the following models:
 >```SplitterNet.py```             &nbsp; - &nbsp; The new SplitterNet. <br/>
 >```Dynamic_PlainNet.py```        &nbsp; - &nbsp; Dynamic implementation of the PlainNet as proposed in [NAFNet paper](https://arxiv.org/pdf/2204.04676v4.pdf) <br/>
 >```Dynamic_UNet_simple.py```     &nbsp; - &nbsp; Dynamic implementation of a simple UNet <br/>
