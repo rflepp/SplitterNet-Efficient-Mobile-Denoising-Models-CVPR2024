@@ -2,14 +2,10 @@
 
 <br/>
 
-<img src="https://github.com/rflepp/SplitterNet-Efficient-Mobile-Denoising-Models-CVPR2024/blob/main/images/SplitterNet_arch.png"/>
-
-<br/>
-
 #### 1. Overview
 This is the official repository for the CVPR2024 paper "Real-World Mobile Image Denoising Dataset with Efficient Baselines". It includes the presented SplitterNet as well as other state of the art efficient denoising networks, optimized for the mobile usage with .TFLite. A simple U-Net, the winning models of the [MAI2021](https://arxiv.org/pdf/2105.08629v1.pdf) challenge by NOAHTCV and Megvii, the newly proposed SplitterNet and MoDeNet as well as some other implementations are included.
 
-The presented MIDD dataset is not yet publicly available. Updates will be found on [Project Webpage](https://people.ee.ethz.ch/~ihnatova/midd.html#)
+The presented MIDD dataset can be found here: [MIDD](https://download.ai-benchmark.com/s/Gq3n2cS7QkH7ZMz)
 
 <br/>
 
@@ -91,6 +87,10 @@ Inside the models folder, you find the following models:
 >```PlainNet.py```                &nbsp; - &nbsp; Implementation of the PlainNet as proposed in [NAFNet paper](https://arxiv.org/pdf/2204.04676v4.pdf) <br/>
 
 The term dynamic refers to the fact that you are able to give specific numbers of blocks per U-Net level as well as dictate the number of levels, you can pass the configurations of e.g. ```[2,2,4,8], [2,2,2,2]``` or ```[1,1], [1,1]``` to build custom models.
+
+A diagram of our proposed SplitterNet model:
+<br/>
+<img src="https://github.com/rflepp/SplitterNet-Efficient-Mobile-Denoising-Models-CVPR2024/blob/main/images/SplitterNet_arch.png"/>
 
 <br/>
 
