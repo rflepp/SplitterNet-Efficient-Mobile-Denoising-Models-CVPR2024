@@ -1,4 +1,4 @@
-## SplitterNet and more Mobile Image Denoising Deep Learning Models
+## SplitterNet and other SOTA Mobile Image Denoising Deep Learning Models
 
 <br/>
 
