@@ -119,3 +119,10 @@ python evaluate.py /path/to/model/ evaluate_saved_model /path/to/test/data
 
 You may need to set ```CUDA_VISIBLE_DEVICES="" ```.
 
+#### 9. License
+Copyright (C) 2024 Roman Flepp. All rights reserved.
+
+Licensed under the CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike 4.0 International).
+
+The code is released for academic research use only.
+
