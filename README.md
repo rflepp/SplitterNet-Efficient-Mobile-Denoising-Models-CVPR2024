@@ -75,6 +75,7 @@ Contains the respective log files as well as a snapshot of the parent folder.
 >```data_preprocessing/``` &nbsp; - &nbsp; a set of functions as a jupyter notebook that can be used to create the patches for training <br/>
 
 >```train.py```           &nbsp; - &nbsp; training logic <br/>
+>```pytorch/```          &nbsp; - &nbsp; PyTorch SplitterNet implementation with training and inference scripts <br/>
 >```utils.py```           &nbsp; - &nbsp; auxiliary functions <br/>
 >```evaluate.py```        &nbsp; - &nbsp; the evaluation logic <br/>
 >```dataloader.py```      &nbsp; - &nbsp; the data loading logic <br/>
@@ -126,7 +127,29 @@ python evaluate.py /path/to/model/ evaluate_saved_model /path/to/test/data
 
 You may need to set ```CUDA_VISIBLE_DEVICES="" ```.
 
-#### 9. License
+#### 9. PyTorch SplitterNet
+
+A lightweight PyTorch port of SplitterNet is available in the `pytorch/` directory. It reuses the same folder structure as the
+TensorFlow pipeline (paired noisy and clean patches in the same directory). Example usage:
+
+- **Training**
+
+```bash
+python -m pytorch.train /path/to/patches 20 8 /tmp/splitternet_torch --num_filters 32 --val_split 0.1
+```
+
+This writes TensorBoard logs and checkpoints into the provided output directory. To resume training, pass `--checkpoint /tmp/spli
+tternet_torch/checkpoint_last.pt`.
+
+- **Inference**
+
+```bash
+python -m pytorch.inference /tmp/splitternet_torch/checkpoint_best.pt /path/to/noisy_image_or_folder /tmp/denoised_outputs
+```
+
+Outputs are written as 16-bit PNGs preserving the original spatial resolution.
+
+#### 10. License
 Copyright (C) 2024 Roman Flepp. All rights reserved.
 
 Licensed under the CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike 4.0 International).
