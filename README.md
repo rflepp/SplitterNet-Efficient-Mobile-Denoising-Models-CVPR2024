@@ -5,6 +5,11 @@
 
 <br/>
 
+<p align="center">
+  <a href="https://aiff22.github.io/midd.html"><strong>Project Page</strong></a> •
+  <a href="https://openaccess.thecvf.com/content/CVPR2024/papers/Flepp_Real-World_Mobile_Image_Denoising_Dataset_with_Efficient_Baselines_CVPR_2024_paper.pdf"><strong>Paper (CVPR 2024)</strong></a>
+</p>
+
 <br/>
 
 #### 1. Overview
@@ -75,6 +80,7 @@ Contains the respective log files as well as a snapshot of the parent folder.
 >```data_preprocessing/``` &nbsp; - &nbsp; a set of functions as a jupyter notebook that can be used to create the patches for training <br/>
 
 >```train.py```           &nbsp; - &nbsp; training logic <br/>
+>```pytorch/```          &nbsp; - &nbsp; PyTorch SplitterNet implementation with training and inference scripts <br/>
 >```utils.py```           &nbsp; - &nbsp; auxiliary functions <br/>
 >```evaluate.py```        &nbsp; - &nbsp; the evaluation logic <br/>
 >```dataloader.py```      &nbsp; - &nbsp; the data loading logic <br/>
@@ -126,7 +132,7 @@ python evaluate.py /path/to/model/ evaluate_saved_model /path/to/test/data
 
 You may need to set ```CUDA_VISIBLE_DEVICES="" ```.
 
-#### 9. License
+#### 10. License
 Copyright (C) 2024 Roman Flepp. All rights reserved.
 
 Licensed under the CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike 4.0 International).
