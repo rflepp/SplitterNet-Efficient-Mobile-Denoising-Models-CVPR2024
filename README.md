@@ -2,11 +2,10 @@
 <p align="center">
 <br/>
 <img src="https://github.com/rflepp/SplitterNet-Efficient-Mobile-Denoising-Models-CVPR2024/blob/main/images/SamsungS23Ultra_ISP_Comparison.png" width ="60%"/>
+</p>
 
-<br/>
-
-  <a href="https://aiff22.github.io/midd.html"><strong>Project Page</strong></a> •
-  <a href="https://openaccess.thecvf.com/content/CVPR2024/papers/Flepp_Real-World_Mobile_Image_Denoising_Dataset_with_Efficient_Baselines_CVPR_2024_paper.pdf"><strong>Paper (CVPR 2024)</strong></a>
+<p align="center">
+<a href="https://aiff22.github.io/midd.html"><strong>Project Page</strong></a> • <a href="https://openaccess.thecvf.com/content/CVPR2024/papers/Flepp_Real-World_Mobile_Image_Denoising_Dataset_with_Efficient_Baselines_CVPR_2024_paper.pdf"><strong>Paper (CVPR 2024)</strong></a>
 </p>
 
 <br/>
