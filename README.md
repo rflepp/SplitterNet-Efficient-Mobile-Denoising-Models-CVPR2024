@@ -1,158 +1,171 @@
-## SplitterNet and other SOTA Mobile Image Denoising Deep Learning Models
+# SplitterNet and other Efficient Image Denoising Models
+
 <p align="center">
-<br/>
-<img src="https://github.com/rflepp/SplitterNet-Efficient-Mobile-Denoising-Models-CVPR2024/blob/main/images/SamsungS23Ultra_ISP_Comparison.png" width ="60%"/>
+  <a href="https://openaccess.thecvf.com/content/CVPR2024/papers/Flepp_Real-World_Mobile_Image_Denoising_Dataset_with_Efficient_Baselines_CVPR_2024_paper.pdf"><img src="https://img.shields.io/badge/CVPR-2024-blue.svg" alt="CVPR 2024"></a>
+  <a href="https://aiff22.github.io/midd.html"><img src="https://img.shields.io/badge/Project-Page-green.svg" alt="Project Page"></a>
+  <a href="https://download.ai-benchmark.com/s/Gq3n2cS7QkH7ZMz"><img src="https://img.shields.io/badge/Dataset-MIDD-orange.svg" alt="MIDD Dataset"></a>
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg" alt="License"></a>
 </p>
 
 <p align="center">
-<a href="https://aiff22.github.io/midd.html"><strong>Project Page</strong></a> • <a href="https://openaccess.thecvf.com/content/CVPR2024/papers/Flepp_Real-World_Mobile_Image_Denoising_Dataset_with_Efficient_Baselines_CVPR_2024_paper.pdf"><strong>Paper (CVPR 2024)</strong></a>
+  <img src="images/SplitterNet_arch.png" width="90%" alt="SplitterNet Architecture"/>
 </p>
 
-<br/>
+<p align="center">
+  Official implementation of the CVPR 2024 paper:<br/>
+  <b>"Real-World Mobile Image Denoising Dataset with Efficient Baselines"</b>
+</p>
 
-#### 1. Overview
-This is the official repository for the CVPR2024 paper "Real-World Mobile Image Denoising Dataset with Efficient Baselines". It includes the presented SplitterNet as well as other state of the art efficient denoising networks, optimized for the mobile usage with .TFLite. A simple U-Net, the winning models of the [MAI2021](https://arxiv.org/pdf/2105.08629v1.pdf) challenge by NOAHTCV and Megvii, the newly proposed SplitterNet and MoDeNet as well as some other implementations are included.
+---
 
-The presented MIDD dataset can be found here: [MIDD](https://download.ai-benchmark.com/s/Gq3n2cS7QkH7ZMz)
+## 📌 Table of Contents
+- [Overview](#-overview)
+- [SplitterNet Architecture](#-splitternet-architecture)
+- [Included Models](#-included-models)
+- [Repository Structure](#-repository-structure)
+- [Prerequisites & Installation](#-prerequisites--installation)
+- [Usage](#-usage)
+  - [1. Training](#1-training)
+  - [2. Evaluation](#2-evaluation)
+  - [3. Local Execution](#3-local-execution)
+  - [4. TensorFlow Lite Conversion](#4-tensorflow-lite-conversion)
+  - [5. SIDD Benchmark Submission](#5-sidd-benchmark-submission)
+- [Citation](#-citation)
+- [License](#-license)
 
-<img src="https://github.com/rflepp/SplitterNet-Efficient-Mobile-Denoising-Models-CVPR2024/blob/main/images/Dataset_comparison.png" width ="60%"/>
+---
 
-<br/>
+## 📖 Overview
 
-#### 2. Prerequisites
+This repository contains the official TensorFlow and PyTorch implementations of **SplitterNet** and **MoDeNet**, presented in our CVPR 2024 paper. Additionally, it provides a comprehensive suite of SOTA efficient mobile denoising networks optimized for TensorFlow Lite deployment, alongside baseline implementations from the [MAI 2021 Challenge](https://arxiv.org/pdf/2105.08629v1.pdf).
 
-- Python: scipy, Nmpy, imageio
-- [TensorFlow 2.X](https://www.tensorflow.org/install/) + [CUDA](https://developer.nvidia.com/cuda-toolkit)
-- GPU cluster using Slurm
+The associated **Real-World Mobile Image Denoising Dataset (MIDD)** can be downloaded here:
+👉 **[Download MIDD Dataset](https://download.ai-benchmark.com/s/Gq3n2cS7QkH7ZMz)**
 
-<br/>
+<p align="center">
+  <img src="images/SamsungS23Ultra_ISP_Comparison.png" width="80%" alt="Samsung S23 Ultra ISP Comparison"/>
+</p>
 
-#### 3. First steps
+<p align="center">
+  <img src="images/Dataset_comparison.png" width="75%" alt="Dataset Comparison"/>
+</p>
 
-- Add the wanted dataset. If the dataset is not cropped into patches yet, create those using the ```data_preprocessing > cropping_parallel.py``` file. Please make sure to see the data loading function to set your paths and the needed file pairing algorithm. For MIDD you can have the configuration of one noisy to one denoised or 20 noisy to the same denoised image.
-- Add the wanted testset. It needs to have a form with two subfolders ```/denoised/``` and ```/original/```
-- Add the ABSPATH variable in the `scripts/run_evaluation.sh` and `scripts/run_training.sh` files to the wanted folder.
-- Let TensorFlow XLA know the CUDA path if needed using ```XLA_FLAGS=--xla_gpu_cuda_data_dir=```
+---
 
-<br/>
+## 🏗 SplitterNet Architecture
 
-#### 4. Training the models
+**SplitterNet** is specifically engineered for high-performance, real-time image denoising on mobile devices. By strategically splitting tensor channels across stages and utilizing lightweight attention mechanisms (simple channel attention & spatial attention), it achieves superior trade-offs between PSNR/SSIM reconstruction quality and mobile execution latency on TensorFlow Lite.
 
-The models can be trained as follows:
+---
 
-```bash
-./scripts/run_training.sh SplitterNet 20 16 [1,1,1,1] [1,1,1,1] path/to/train/image/patches/ path/to/test/images/ 5 path/to/pretrained/model 
+## 🧩 Included Models
+
+The repository provides modular, dynamic implementations in `models/`:
+
+| Model | Description | Reference |
+| :--- | :--- | :--- |
+| **SplitterNet** | Proposed ultra-efficient mobile denoising architecture | Flepp et al. (CVPR 2024) |
+| **MoDeNet** | Proposed dynamic multi-scale efficient denoiser | Flepp et al. (CVPR 2024) |
+| **Dynamic_PlainNet** | Dynamic implementation of PlainNet architecture | [NAFNet Paper](https://arxiv.org/pdf/2204.04676v4.pdf) |
+| **Dynamic_UNet_simple** | Lightweight dynamic U-Net baseline | Baseline |
+| **Megvii** | Winner of MAI 2021 Real-Time Image Denoising Challenge | [MAI 2021](https://arxiv.org/pdf/2105.08629v1.pdf) |
+| **NOAHTCV** | Runner-up of MAI 2021 Real-Time Image Denoising Challenge | [MAI 2021](https://arxiv.org/pdf/2105.08629v1.pdf) |
+| **PlainNet** | Standard PlainNet implementation | NAFNet |
+
+> **Note on Dynamic Models:** You can pass custom block configurations per U-Net stage (e.g. `[2, 2, 4, 8]`, `[2, 2, 2, 2]`) as well as customize filter counts.
+
+---
+
+## 📂 Repository Structure
+
+```text
+├── models/                  # TensorFlow model architecture definitions
+├── model_weights/           # Pretrained SplitterNet checkpoint (.h5)
+├── sidd_submission/         # SIDD sRGB Benchmark submission preparation script
+├── data_preprocessing/      # Parallel patch extraction and preprocessing tools
+├── pytorch/                 # PyTorch implementation variant with training & inference
+├── scripts/                 # SLURM cluster training & evaluation launch scripts
+├── images/                  # Figures and visual result comparisons
+├── train.py                 # Main training script
+├── evaluate.py              # Model evaluation & PSNR/SSIM metric calculation
+├── converter.py             # TensorFlow Lite model conversion script
+├── dataloader.py            # Custom tf.data pipeline & patch pairing loader
+├── utils.py                 # Custom loss functions (Charbonnier, Edge, PSNR) & metrics
+├── requirements.txt         # Package dependencies
+└── README.md                # Project documentation
 ```
 
-where SplitterNet is the chosen denosing model, 20 is the number of epochs, 16 the batch size, the [1,1,1,1] [1,1,1,1] the number of encoder respectively decoder steps and the number of blocks for each step, followed by the path to the training patches as well as to the test images, by 5 the number of filters is given computed to the power of two, lastly the path to the pre-trained model is given.
-If there is no pre-trained model, use the value None.
+---
 
-</br>
+## ⚙️ Prerequisites & Installation
 
-The final model is automatically evaluated at the end of the training process. If there is the need of evaluating models manually using the GPU it can be done by using the run_evaluation.sh script.
+### Environment Setup
+Clone the repository and install dependencies using Python 3.10+:
 
 ```bash
-./scripts/run_evaluation.sh /path/to/model/ evaluate_saved_model /path/to/test/data/
+# Clone the repository
+git clone https://github.com/rflepp/SplitterNet-Efficient-Mobile-Denoising-Models-CVPR2024.git
+cd SplitterNet-Efficient-Mobile-Denoising-Models-CVPR2024
+
+# Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: .\venv\Scripts\activate
+
+# Install requirements
+pip install -r requirements.txt
 ```
 
-<br/>
+### Dataset Preparation
+1. Download the [MIDD Dataset](https://download.ai-benchmark.com/s/Gq3n2cS7QkH7ZMz) or your target denoising dataset.
+2. If uncropped, create image patches using `data_preprocessing/cropping_parallel.py`.
+3. Format test sets into subfolders with `/original/` (noisy) and `/denoised/` (ground truth) images.
 
-#### 5. Folder Creation
+---
 
-When training the models as shown above, there is a separate directory that is created each time with a name following this convention: 
+## 🚀 Usage
+
+### 1. Training
+To launch training on a GPU cluster (via SLURM):
+
 ```bash
-${Model Name}_${timestamp}_e${Epochs}_bs${Batch Size}_fe${Filter Number}
+./scripts/run_training.sh SplitterNet 20 16 [1,1,1,1] [1,1,1,1] path/to/train/patches/ path/to/test/images/ 5 path/to/pretrained/model
 ```
-Inside this folder you find a snapshot of the parent folder at the point when the code was executed, two log files including an .err and a .out file, a checkpoints folder where model checkpoints are saved, a trained_model folder where the final trained model is saved.
+*Arguments:* `[Model Name]` `[Epochs]` `[Batch Size]` `[Enc Blocks]` `[Dec Blocks]` `[Train Path]` `[Test Path]` `[Filter Exponent (2^N)]` `[Pretrained Weights Path / None]`
 
-When manually evaluating as shown above a directory with the following naming convention is created:
+### 2. Evaluation
+To evaluate a trained model checkpoint on test data:
+
 ```bash
-evaluation_${timestamp}
-
+./scripts/run_evaluation.sh /path/to/model_checkpoint/ evaluate_saved_model /path/to/test/data/
 ```
-Contains the respective log files as well as a snapshot of the parent folder.
 
-#### 6. File Description
+### 3. Local Execution
+For running locally on a desktop GPU or CPU:
 
->```models/```            &nbsp; - &nbsp; different denoising models including the MoDeNet and the SplitterNet <br/>
->```data_preprocessing/``` &nbsp; - &nbsp; a set of functions as a jupyter notebook that can be used to create the patches for training <br/>
->```sidd_submission/```   &nbsp; - &nbsp; scripts for preparing SIDD sRGB Benchmark submission <br/>
->```scripts/```           &nbsp; - &nbsp; SLURM cluster execution scripts <br/>
+```bash
+python train.py SplitterNet 20 16 ./output [1,1,1,1] [1,1,1,1] path/to/train/patches/ path/to/test/images/ 5 None
+```
 
->```train.py```           &nbsp; - &nbsp; training logic <br/>
->```pytorch/```          &nbsp; - &nbsp; PyTorch SplitterNet implementation with training and inference scripts <br/>
->```utils.py```           &nbsp; - &nbsp; auxiliary functions <br/>
->```evaluate.py```        &nbsp; - &nbsp; the evaluation logic <br/>
->```dataloader.py```      &nbsp; - &nbsp; the data loading logic <br/>
->```converter.py```       &nbsp; - &nbsp; code for converting the model to TensorFlow Lite. <br/>
->```requirements.txt```    &nbsp; - &nbsp; Python dependencies requirement file. <br/>
+### 4. TensorFlow Lite Conversion
+Convert a trained model to `.tflite` for mobile benchmark deployment:
 
-
-
-Inside the models folder, you find the following models:
->```SplitterNet.py```             &nbsp; - &nbsp; The new SplitterNet. <br/>
->```Dynamic_PlainNet.py```        &nbsp; - &nbsp; Dynamic implementation of the PlainNet as proposed in [NAFNet paper](https://arxiv.org/pdf/2204.04676v4.pdf) <br/>
->```Dynamic_UNet_simple.py```     &nbsp; - &nbsp; Dynamic implementation of a simple UNet <br/>
->```Megvii.py```                  &nbsp; - &nbsp; The Model proposed by Megvii research in [MAI2021](https://arxiv.org/pdf/2105.08629v1.pdf) <br/>
->```MoDeNet.py```                 &nbsp; - &nbsp; The new MoDeNet, also in a dynamical implementation <br/>
->```NOAHTCV.py```                 &nbsp; - &nbsp; The Model proposed by NOAHTCV in [MAI2021](https://arxiv.org/pdf/2105.08629v1.pdf) <br/>
->```PlainNet.py```                &nbsp; - &nbsp; Implementation of the PlainNet as proposed in [NAFNet paper](https://arxiv.org/pdf/2204.04676v4.pdf) <br/>
-
-The term dynamic refers to the fact that you are able to give specific numbers of blocks per U-Net level as well as dictate the number of levels, you can pass the configurations of e.g. ```[2,2,4,8], [2,2,2,2]``` or ```[1,1], [1,1]``` to build custom models.
-
-A diagram of our proposed SplitterNet model:
-<br/>
-<img src="https://github.com/rflepp/SplitterNet-Efficient-Mobile-Denoising-Models-CVPR2024/blob/main/images/SplitterNet_arch.png"/>
-
-<br/>
-
-#### 7. Model Conversion
-
-In order to convert a model to TensorFlow Lite, add the model code or load the model in the ```converter.py``` file and call it as follows:
 ```bash
 python converter.py
 ```
 
-You may need to set ```CUDA_VISIBLE_DEVICES="" ```.
-
-<br/>
-
-#### 8. Local Execution
-
-For running the code locally, which is not recommended use:
-```bash
-python train.py MoDeNet 20 16 None [1,1,1,1] [1,1,1,1] path/to/train/image/patches path/to/test/images/ path/to/test/images/ 5 path/to/pretrained/model 5 None
-```
-
-and for evaluation:
-```bash
-python evaluate.py /path/to/model/ evaluate_saved_model /path/to/test/data
-```
-
-You may need to set ```CUDA_VISIBLE_DEVICES="" ```.
-
-<br/>
-
-#### 9. SIDD Benchmark Submission
-
-To generate the sRGB submission file (`SubmitSrgb.mat`) for the [SIDD Benchmark](http://130.63.97.225/sidd/benchmark_submit.php):
+### 5. SIDD Benchmark Submission
+To evaluate SplitterNet on the official [SIDD sRGB Benchmark](http://130.63.97.225/sidd/benchmark_submit.php):
 
 ```bash
 python sidd_submission/prepare_submission_srgb_sidd.py
 ```
+This automatically downloads `BenchmarkNoisyBlocksSrgb.mat` if not present locally, performs inference using `model_weights/SplitterNet_MIDD_model.h5`, and generates `SubmitSrgb.mat` ready for submission.
 
-This script will:
-1. Automatically load your trained SplitterNet model from `model_weights/SplitterNet_MIDD_model.h5`.
-2. Check if `BenchmarkNoisyBlocksSrgb.mat` exists locally; if missing, it downloads it automatically.
-3. Run SplitterNet denoising across all benchmark patches.
-4. Save `SubmitSrgb.mat` ready for upload to the SIDD benchmark submission page.
+---
 
+## 📝 Citation
 
-<br/>
-
-#### 10. Citation
-
-If you find this work or codebase useful for your research, please cite our CVPR 2024 paper:
+If you find SplitterNet or our MIDD dataset useful in your research, please cite our paper:
 
 ```bibtex
 @inproceedings{flepp2024real,
@@ -164,14 +177,10 @@ If you find this work or codebase useful for your research, please cite our CVPR
 }
 ```
 
-<br/>
+---
 
-#### 11. License
-Copyright (C) 2024 Roman Flepp. All rights reserved.
+## 📄 License
 
-Licensed under the CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike 4.0 International).
-
-The code is released for academic research use only.
-
-
-
+Copyright (C) 2024 Roman Flepp. All rights reserved.  
+Licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).  
+*Released for academic research use only.*
