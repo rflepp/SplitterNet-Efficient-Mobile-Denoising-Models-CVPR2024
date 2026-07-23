@@ -31,7 +31,7 @@ The presented MIDD dataset can be found here: [MIDD](https://download.ai-benchma
 
 - Add the wanted dataset. If the dataset is not cropped into patches yet, create those using the ```data_preprocessing > cropping_parallel.py``` file. Please make sure to see the data loading function to set your paths and the needed file pairing algorithm. For MIDD you can have the configuration of one noisy to one denoised or 20 noisy to the same denoised image.
 - Add the wanted testset. It needs to have a form with two subfolders ```/denoised/``` and ```/original/```
-- Add the ABSPATH variable in the run_evaluation.sh and run_training.sh files to the wanted folder.
+- Add the ABSPATH variable in the `scripts/run_evaluation.sh` and `scripts/run_training.sh` files to the wanted folder.
 - Let TensorFlow XLA know the CUDA path if needed using ```XLA_FLAGS=--xla_gpu_cuda_data_dir=```
 
 <br/>
@@ -41,7 +41,7 @@ The presented MIDD dataset can be found here: [MIDD](https://download.ai-benchma
 The models can be trained as follows:
 
 ```bash
-./run_training.sh SplitterNet 20 16 [1,1,1,1] [1,1,1,1] path/to/train/image/patches/ path/to/test/images/ 5 path/to/pretrained/model 
+./scripts/run_training.sh SplitterNet 20 16 [1,1,1,1] [1,1,1,1] path/to/train/image/patches/ path/to/test/images/ 5 path/to/pretrained/model 
 ```
 
 where SplitterNet is the chosen denosing model, 20 is the number of epochs, 16 the batch size, the [1,1,1,1] [1,1,1,1] the number of encoder respectively decoder steps and the number of blocks for each step, followed by the path to the training patches as well as to the test images, by 5 the number of filters is given computed to the power of two, lastly the path to the pre-trained model is given.
@@ -52,7 +52,7 @@ If there is no pre-trained model, use the value None.
 The final model is automatically evaluated at the end of the training process. If there is the need of evaluating models manually using the GPU it can be done by using the run_evaluation.sh script.
 
 ```bash
-./run_evaluation.sh /path/to/model/ evaluate_saved_model /path/to/test/data/
+./scripts/run_evaluation.sh /path/to/model/ evaluate_saved_model /path/to/test/data/
 ```
 
 <br/>
@@ -76,6 +76,8 @@ Contains the respective log files as well as a snapshot of the parent folder.
 
 >```models/```            &nbsp; - &nbsp; different denoising models including the MoDeNet and the SplitterNet <br/>
 >```data_preprocessing/``` &nbsp; - &nbsp; a set of functions as a jupyter notebook that can be used to create the patches for training <br/>
+>```sidd_submission/```   &nbsp; - &nbsp; scripts for preparing SIDD sRGB Benchmark submission <br/>
+>```scripts/```           &nbsp; - &nbsp; SLURM cluster execution scripts <br/>
 
 >```train.py```           &nbsp; - &nbsp; training logic <br/>
 >```pytorch/```          &nbsp; - &nbsp; PyTorch SplitterNet implementation with training and inference scripts <br/>
@@ -83,9 +85,8 @@ Contains the respective log files as well as a snapshot of the parent folder.
 >```evaluate.py```        &nbsp; - &nbsp; the evaluation logic <br/>
 >```dataloader.py```      &nbsp; - &nbsp; the data loading logic <br/>
 >```converter.py```       &nbsp; - &nbsp; code for converting the model to TensorFlow Lite. <br/>
->```environment.txt```    &nbsp; - &nbsp; environment details. <br/>
->```run_training.sh```    &nbsp; - &nbsp; commands to train on a SLURM cluster. <br/>
->```run_evaluation.sh```  &nbsp; - &nbsp; commands to evaluate on a SLURM cluster. <br/>
+>```requirements.txt```    &nbsp; - &nbsp; Python dependencies requirement file. <br/>
+
 
 
 Inside the models folder, you find the following models:
@@ -130,10 +131,47 @@ python evaluate.py /path/to/model/ evaluate_saved_model /path/to/test/data
 
 You may need to set ```CUDA_VISIBLE_DEVICES="" ```.
 
-#### 10. License
+<br/>
+
+#### 9. SIDD Benchmark Submission
+
+To generate the sRGB submission file (`SubmitSrgb.mat`) for the [SIDD Benchmark](http://130.63.97.225/sidd/benchmark_submit.php):
+
+```bash
+python sidd_submission/prepare_submission_srgb_sidd.py
+```
+
+This script will:
+1. Automatically load your trained SplitterNet model from `model_weights/SplitterNet_MIDD_model.h5`.
+2. Check if `BenchmarkNoisyBlocksSrgb.mat` exists locally; if missing, it downloads it automatically.
+3. Run SplitterNet denoising across all benchmark patches.
+4. Save `SubmitSrgb.mat` ready for upload to the SIDD benchmark submission page.
+
+
+<br/>
+
+#### 10. Citation
+
+If you find this work or codebase useful for your research, please cite our CVPR 2024 paper:
+
+```bibtex
+@inproceedings{flepp2024real,
+  title={Real-World Mobile Image Denoising Dataset with Efficient Baselines},
+  author={Flepp, Roman and others},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages={25774--25783},
+  year={2024}
+}
+```
+
+<br/>
+
+#### 11. License
 Copyright (C) 2024 Roman Flepp. All rights reserved.
 
 Licensed under the CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike 4.0 International).
 
 The code is released for academic research use only.
+
+
 

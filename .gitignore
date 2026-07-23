@@ -1,0 +1,21 @@
+# Python / Virtual Environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Data & Output Files
+*.mat
+*.tmp
+checkpoints/
+trained_model/
+evaluation_*/
+*.err
+*.out
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -27,7 +27,7 @@ mkdir -p $ABSPATH/$FOLDER
 mkdir -p $ABSPATH/$FOLDER/trained_model
 mkdir -p $ABSPATH/$FOLDER/checkpoints
 
-rsync -r --prune-empty-dirs --exclude ".pre-commit-config.yaml" --exclude "wandb" --exclude "outputs" --exclude "artifacts" --include="*/" --include="*.py" --include='*.yaml' --include="*.err" --include="*.out" --include="run_evaluation.sh" --include="run_training.sh" --exclude="*" "." $ABSPATH/$FOLDER
+rsync -r --prune-empty-dirs --exclude ".pre-commit-config.yaml" --exclude "wandb" --exclude "outputs" --exclude "artifacts" --include="*/" --include="*.py" --include='*.yaml' --include="*.err" --include="*.out" --include="scripts/*.sh" --exclude="*" "." $ABSPATH/$FOLDER
 
 cat << EOT > "$ABSPATH/$FOLDER/train.sh"
 #!/bin/bash

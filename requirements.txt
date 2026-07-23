@@ -1,0 +1,8 @@
+tensorflow>=2.14.0
+tf-keras
+numpy
+scipy
+h5py
+matplotlib
+pillow
+rawpy
