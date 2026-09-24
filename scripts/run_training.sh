@@ -1,6 +1,9 @@
 #!/bin/bash
+# Submit a training job to SLURM.
+# Usage: ./scripts/run_training.sh MODEL EPOCHS BATCH_SIZE ENC_BLOCKS DEC_BLOCKS DATASET TEST_DIR FILTER_EXP [CHECKPOINT]
+# Example: ./scripts/run_training.sh SplitterNet 20 16 1,1,1,1 1,1,1,1 /data/patches /data/test_set 5
+set -euo pipefail
 
-# --> CONFIGURE BEFORE RUNNING JOB
 NAME=$1
 EPOCHS=$2
 BATCH_SIZE=$3
@@ -9,39 +12,36 @@ DEC=$5
 DATASET=$6
 TESTDIR=$7
 FILTER_EXP=$8
-TRAINED_PATH=$9
+CHECKPOINT=${9:-}
 NGPUS=1
 
-ENC_str=${ENC_str:1}
-
-DEC_str=${DEC_str:1}
-
 # --> CONFIGURE BEFORE RUNNING JOB
-# #SBATCH --constraint='titan_xp|geforce_rtx_2080_ti'
+ABSPATH=/your/path
+# <--
 
-# Copy code files
 timestamp=$(date +%Y-%m-%d_%H-%M-%S)
-ABSPATH=/your/path/
-FOLDER=./your/path/${NAME}_${timestamp}_e${EPOCHS}_bs${BATCH_SIZE}_fe${FILTER_EXP}
-mkdir -p $ABSPATH/$FOLDER
-mkdir -p $ABSPATH/$FOLDER/trained_model
-mkdir -p $ABSPATH/$FOLDER/checkpoints
+FOLDER=$ABSPATH/runs/${NAME}_${timestamp}_e${EPOCHS}_bs${BATCH_SIZE}_fe${FILTER_EXP}
+mkdir -p "$FOLDER"
 
-rsync -r --prune-empty-dirs --exclude ".pre-commit-config.yaml" --exclude "wandb" --exclude "outputs" --exclude "artifacts" --include="*/" --include="*.py" --include='*.yaml' --include="*.err" --include="*.out" --include="scripts/*.sh" --exclude="*" "." $ABSPATH/$FOLDER
+# Snapshot the code so later edits do not affect queued jobs.
+rsync -r --prune-empty-dirs --include="*/" --include="*.py" --exclude="*" "./" "$FOLDER/code"
 
-cat << EOT > "$ABSPATH/$FOLDER/train.sh"
+CHECKPOINT_ARG=""
+if [ -n "$CHECKPOINT" ] && [ "$CHECKPOINT" != "None" ]; then
+    CHECKPOINT_ARG="--checkpoint $CHECKPOINT"
+fi
+
+cat << EOT > "$FOLDER/train.sh"
 #!/bin/bash
-
-#SBATCH --output=$ABSPATH/$FOLDER/TRAIN-%x.%j.out
-#SBATCH --error=$ABSPATH/$FOLDER/TRAIN-%x.%j.err
+#SBATCH --output=$FOLDER/TRAIN-%x.%j.out
+#SBATCH --error=$FOLDER/TRAIN-%x.%j.err
 #SBATCH --gres=gpu:$NGPUS
 #SBATCH --job-name=$NAME
 #SBATCH --mail-type=BEGIN,END,FAIL
 
-cd $ABSPATH
-
-python -u $ABSPATH/$FOLDER/train.py $NAME $EPOCHS $BATCH_SIZE $FOLDER $ENC $DEC $DATASET $TESTDIR $FILTER_EXP $TRAINED_PATH
-
+python -u $FOLDER/code/train.py --model $NAME --epochs $EPOCHS --batch-size $BATCH_SIZE \\
+    --enc-blocks $ENC --dec-blocks $DEC --dataset $DATASET --test-dir $TESTDIR \\
+    --filter-exp $FILTER_EXP --output-dir $FOLDER $CHECKPOINT_ARG
 EOT
 
-sbatch "$ABSPATH/$FOLDER/train.sh"
+sbatch "$FOLDER/train.sh"

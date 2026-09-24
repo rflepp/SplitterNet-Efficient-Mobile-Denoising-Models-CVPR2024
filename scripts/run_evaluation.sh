@@ -1,36 +1,38 @@
 #!/bin/bash
+# Submit an evaluation job to SLURM.
+# Usage: ./scripts/run_evaluation.sh MODEL_PATH TEST_DIR [MODEL_NAME]
+# MODEL_NAME is required when MODEL_PATH is a .h5 weights file, e.g. SplitterNet.
+set -euo pipefail
 
-# --> CONFIGURE BEFORE RUNNING JOB
-TRAINED_PATH=$1
-MODE=$2
-TEST_DATA=$3
+MODEL_PATH=$1
+TEST_DIR=$2
+MODEL_NAME=${3:-}
 NGPUS=1
 
 # --> CONFIGURE BEFORE RUNNING JOB
+ABSPATH=/your/path
+# <--
 
-# Copy code files
 timestamp=$(date +%Y-%m-%d_%H-%M-%S)
-ABSPATH=/your/path/
-FOLDER=./your/path/evaluate_${timestamp}
-mkdir -p $ABSPATH/$FOLDER
+FOLDER=$ABSPATH/runs/evaluate_${timestamp}
+mkdir -p "$FOLDER"
 
-export XLA_FLAGS=--xla_gpu_cuda_data_dir=/itet-stor/rflepp/net_scratch/conda/lib
+rsync -r --prune-empty-dirs --include="*/" --include="*.py" --exclude="*" "./" "$FOLDER/code"
 
-rsync -r --prune-empty-dirs --exclude ".pre-commit-config.yaml" --exclude "wandb" --exclude "outputs" --exclude "artifacts" --include="*/" --include="*.py" --include='*.yaml' --include="*.err" --include="*.out" --include="scripts/*.sh" --exclude="*" "." $ABSPATH/$FOLDER
+MODEL_ARG=""
+if [ -n "$MODEL_NAME" ]; then
+    MODEL_ARG="--model $MODEL_NAME"
+fi
 
-cat << EOT > "$ABSPATH/$FOLDER/train.sh"
+cat << EOT > "$FOLDER/evaluate.sh"
 #!/bin/bash
-
-#SBATCH --output=$ABSPATH/$FOLDER/TRAIN-%x.%j.out
-#SBATCH --error=$ABSPATH/$FOLDER/TRAIN-%x.%j.err
+#SBATCH --output=$FOLDER/EVAL-%x.%j.out
+#SBATCH --error=$FOLDER/EVAL-%x.%j.err
 #SBATCH --gres=gpu:$NGPUS
-#SBATCH --job-name=$NAME
+#SBATCH --job-name=evaluate
 #SBATCH --mail-type=BEGIN,END,FAIL
 
-cd $ABSPATH
-
-python -u $ABSPATH/$FOLDER/evaluate.py $TRAINED_PATH $MODE $TEST_DATA
-
+python -u $FOLDER/code/evaluate.py $MODEL_PATH $TEST_DIR $MODEL_ARG
 EOT
 
-sbatch "$ABSPATH/$FOLDER/train.sh"
+sbatch "$FOLDER/evaluate.sh"

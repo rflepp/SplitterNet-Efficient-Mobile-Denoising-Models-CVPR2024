@@ -27,7 +27,7 @@
 - [Usage](#-usage)
   - [1. Training](#1-training)
   - [2. Evaluation](#2-evaluation)
-  - [3. Local Execution](#3-local-execution)
+  - [3. SLURM Cluster](#3-slurm-cluster)
   - [4. TensorFlow Lite Conversion](#4-tensorflow-lite-conversion)
   - [5. SIDD Benchmark Submission](#5-sidd-benchmark-submission)
 - [Citation](#-citation)
@@ -65,32 +65,43 @@ The repository provides modular, dynamic implementations in `models/`:
 | Model | Description | Reference |
 | :--- | :--- | :--- |
 | **SplitterNet** | Proposed ultra-efficient mobile denoising architecture | Flepp et al. (CVPR 2024) |
+| **SplitterNet_LN** | SplitterNet with layer normalisation | Flepp et al. (CVPR 2024) |
 | **MoDeNet** | Proposed dynamic multi-scale efficient denoiser | Flepp et al. (CVPR 2024) |
 | **Dynamic_PlainNet** | Dynamic implementation of PlainNet architecture | [NAFNet Paper](https://arxiv.org/pdf/2204.04676v4.pdf) |
 | **Dynamic_UNet_simple** | Lightweight dynamic U-Net baseline | Baseline |
 | **Megvii** | Winner of MAI 2021 Real-Time Image Denoising Challenge | [MAI 2021](https://arxiv.org/pdf/2105.08629v1.pdf) |
 | **NOAHTCV** | Runner-up of MAI 2021 Real-Time Image Denoising Challenge | [MAI 2021](https://arxiv.org/pdf/2105.08629v1.pdf) |
 | **PlainNet** | Standard PlainNet implementation | NAFNet |
+| **ResNet_18** | ResNet-18 encoder with U-Net decoder | Baseline |
 
-> **Note on Dynamic Models:** You can pass custom block configurations per U-Net stage (e.g. `[2, 2, 4, 8]`, `[2, 2, 2, 2]`) as well as customize filter counts.
+> **Note on Dynamic Models:** You can pass custom block configurations per U-Net stage (e.g. `--enc-blocks 2,2,4,8`) as well as customize filter counts.
+
+All models can be built by name from Python:
+
+```python
+from models import build_model
+
+model = build_model("SplitterNet", num_filters=32)
+model.load_weights("model_weights/SplitterNet_MIDD_model.h5")  # pretrained on MIDD
+```
 
 ---
 
 ## 📂 Repository Structure
 
 ```text
-├── models/                  # TensorFlow model architecture definitions
-├── model_weights/           # Pretrained SplitterNet checkpoint (.h5)
+├── models/                  # Keras 3 model definitions and build_model() registry
+├── model_weights/           # Pretrained SplitterNet weights (.h5)
 ├── sidd_submission/         # SIDD sRGB Benchmark submission preparation script
-├── data_preprocessing/      # Parallel patch extraction and preprocessing tools
-├── pytorch/                 # PyTorch implementation variant with training & inference
+├── data_preprocessing/      # Parallel patch extraction and minimal ISP notebook
 ├── scripts/                 # SLURM cluster training & evaluation launch scripts
+├── tests/                   # pytest suite (models, pretrained weights, data pipeline, training)
 ├── images/                  # Figures and visual result comparisons
 ├── train.py                 # Main training script
 ├── evaluate.py              # Model evaluation & PSNR/SSIM metric calculation
 ├── converter.py             # TensorFlow Lite model conversion script
-├── dataloader.py            # Custom tf.data pipeline & patch pairing loader
-├── utils.py                 # Custom loss functions (Charbonnier, Edge, PSNR) & metrics
+├── dataloader.py            # tf.data pipeline & noisy/ground-truth pairing
+├── utils.py                 # Custom losses (PSNR, L1, Edge, Charbonnier), metrics & callbacks
 ├── requirements.txt         # Package dependencies
 └── README.md                # Project documentation
 ```
@@ -100,7 +111,7 @@ The repository provides modular, dynamic implementations in `models/`:
 ## ⚙️ Prerequisites & Installation
 
 ### Environment Setup
-Clone the repository and install dependencies using Python 3.10+:
+The code targets **TensorFlow 2.20+ with Keras 3** (tested with TensorFlow 2.21 / Keras 3.15) on Python 3.10–3.13. Clone the repository and install the dependencies:
 
 ```bash
 # Clone the repository
@@ -113,45 +124,55 @@ source venv/bin/activate  # On Windows: .\venv\Scripts\activate
 
 # Install requirements
 pip install -r requirements.txt
+
+# Optional: run the test suite
+pytest tests
 ```
 
 ### Dataset Preparation
 1. Download the [MIDD Dataset](https://download.ai-benchmark.com/s/Gq3n2cS7QkH7ZMz) or your target denoising dataset.
-2. If uncropped, create image patches using `data_preprocessing/cropping_parallel.py`.
-3. Format test sets into subfolders with `/original/` (noisy) and `/denoised/` (ground truth) images.
+2. If uncropped, create 256×256 patches for the noisy and ground-truth images:
+   ```bash
+   python data_preprocessing/cropping_parallel.py dataset/uncropped/original dataset/patches/original_patches
+   python data_preprocessing/cropping_parallel.py dataset/uncropped/denoised dataset/patches/denoised_patches
+   ```
+3. `train.py` and `evaluate.py` accept two directory layouts:
+   * **flat**: `<dir>/original/` (noisy) and `<dir>/denoised/` (ground truth) with identically sorted file names;
+   * **per scene**: `<dir>/<scene>/original_patches/` (or `original_20_patches/`, or `test_set/original/`) next to `<dir>/<scene>/denoised_patches/` (or `test_set/denoised/`). Files are paired by name; a `_file_<N>` burst index in the noisy file names is ignored, so several noisy captures can share one ground truth.
 
 ---
 
 ## 🚀 Usage
 
 ### 1. Training
-To launch training on a GPU cluster (via SLURM):
-
 ```bash
-./scripts/run_training.sh SplitterNet 20 16 [1,1,1,1] [1,1,1,1] path/to/train/patches/ path/to/test/images/ 5 path/to/pretrained/model
+python train.py --model SplitterNet --epochs 20 --batch-size 16 --filter-exp 5 \
+    --dataset path/to/train/patches --test-dir path/to/test_set --output-dir runs/splitternet
 ```
-*Arguments:* `[Model Name]` `[Epochs]` `[Batch Size]` `[Enc Blocks]` `[Dec Blocks]` `[Train Path]` `[Test Path]` `[Filter Exponent (2^N)]` `[Pretrained Weights Path / None]`
+Dynamic models additionally take `--enc-blocks 1,1,1,1 --dec-blocks 1,1,1,1`. Use `--checkpoint` to resume from a `.keras` checkpoint or to fine-tune from `.h5` weights (e.g. `model_weights/SplitterNet_MIDD_model.h5`). Checkpoints are written to `<output-dir>/checkpoints/` and the final model to `<output-dir>/trained_model.keras`. Run `python train.py --help` for all options.
 
 ### 2. Evaluation
-To evaluate a trained model checkpoint on test data:
-
 ```bash
-./scripts/run_evaluation.sh /path/to/model_checkpoint/ evaluate_saved_model /path/to/test/data/
+# Trained .keras model
+python evaluate.py runs/splitternet/trained_model.keras path/to/test_set
+# Weights-only .h5 file (the architecture must be given)
+python evaluate.py model_weights/SplitterNet_MIDD_model.h5 path/to/test_set --model SplitterNet
 ```
 
-### 3. Local Execution
-For running locally on a desktop GPU or CPU:
-
+### 3. SLURM Cluster
+Set `ABSPATH` in the scripts, then submit jobs with:
 ```bash
-python train.py SplitterNet 20 16 ./output [1,1,1,1] [1,1,1,1] path/to/train/patches/ path/to/test/images/ 5 None
+./scripts/run_training.sh SplitterNet 20 16 1,1,1,1 1,1,1,1 path/to/train/patches path/to/test_set 5 [checkpoint]
+./scripts/run_evaluation.sh path/to/model.keras path/to/test_set [model name for .h5 weights]
 ```
 
 ### 4. TensorFlow Lite Conversion
-Convert a trained model to `.tflite` for mobile benchmark deployment:
+Convert a model with a fixed input resolution to `.tflite` for mobile benchmark deployment:
 
 ```bash
-python converter.py
+python converter.py --model SplitterNet --weights model_weights/SplitterNet_MIDD_model.h5 --height 720 --width 480
 ```
+Add `--optimize` for dynamic-range quantisation. The resulting file can be run with the [LiteRT](https://ai.google.dev/edge/litert) interpreter (`pip install ai-edge-litert`) or the PRO mode of the [AI Benchmark](https://ai-benchmark.com/workshops/mai/2021/#runtime) app.
 
 ### 5. SIDD Benchmark Submission
 To evaluate SplitterNet on the official [SIDD sRGB Benchmark](http://130.63.97.225/sidd/benchmark_submit.php):

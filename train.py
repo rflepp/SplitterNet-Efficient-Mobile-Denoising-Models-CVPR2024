@@ -1,129 +1,95 @@
-import os
+"""Train a denoising model.
+
+Example:
+    python train.py --model SplitterNet --epochs 20 --batch-size 16 --output-dir runs/splitternet \\
+        --dataset path/to/train/patches --test-dir path/to/test_set
+"""
+import argparse
 import logging
-import sys
-import tensorflow as tf
-import json
-from dataloader import get_datasets
-from models import Dynamic_PlainNet, Dynamic_UNet_simple, Megvii, MoDeNet, NOAHTCV, PlainNet, SplitterNet, ResNet_18
-from utils import PSNRMetric, SSIMMetric, PSNRLoss, PrintLearningRate
-from evaluate import evaluate_saved_model
+import os
 
-def run(model_name, dir_path, epochs, batch_size, enc_blocks, dec_blocks, dataset_path, test_set_dir, filter_exp=5, saved_model_path=None):
-    logging.basicConfig(level=logging.DEBUG)
-    logging.debug("Starting.")
-    
-    logging.debug(f"Epochs: {epochs}, Batch Size: {batch_size}, Filters: {2**int(filter_exp)}, Saved model path: {saved_model_path}, "
-                f"Dataset: {dataset_path}, Encoder Block Number: {enc_blocks}, Decoder Block Number: {dec_blocks}")
+# TensorFlow's oneDNN CPU kernels segfault when back-propagating through the 1x1, stride-2
+# Conv2DTranspose layers of MoDeNet/NOAHTCV (TF 2.21). This only affects CPU training.
+os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
 
-    ####################################################################################################################################
-    # Data Loading
-    ####################################################################################################################################
+import keras  # noqa: E402
 
-    TRAIN_ORIGINAL_PATCHES_PATH = dataset_path
-    TRAIN_DENOISED_PATCHES_PATH = dataset_path
+from dataloader import get_datasets  # noqa: E402
+from evaluate import evaluate_model, load_model  # noqa: E402
+from models import MODEL_NAMES, build_model  # noqa: E402
+from utils import PrintLearningRate, PSNRLoss, PSNRMetric, SSIMMetric  # noqa: E402
 
-    CHECKPOINT_PATH = dir_path+"/checkpoints/"
-    TRAINED_MODEL_PATH = dir_path+"/trained_model/"
-    
-    logging.debug("Loading Data")
-    train_dataset, val_dataset = get_datasets(TRAIN_ORIGINAL_PATCHES_PATH, TRAIN_DENOISED_PATCHES_PATH, batch_size, val_split=0.1)
+logger = logging.getLogger(__name__)
 
-    ####################################################################################################################################
-    # Model
-    ####################################################################################################################################
+INITIAL_LEARNING_RATE = 4e-5
+FINAL_LEARNING_RATE = 7e-6
 
-    tf.keras.backend.clear_session()
-    tf.random.set_seed(123)
 
-    input_size = (None,None,3)
-    model = None
+def parse_blocks(value):
+    """Parse a block configuration such as ``1,1,1,1`` or ``[2,2,4,8]``."""
+    return [int(v) for v in value.strip("[]").split(",")]
 
-    decay_steps = len(train_dataset)*int(epochs)
-    initial_learning_rate = 4e-5
-    final_learning_rate = 7e-06
 
-    lr_schedule = tf.keras.experimental.CosineDecay(
-        initial_learning_rate, decay_steps, alpha=final_learning_rate/initial_learning_rate)
+def train(model_name, output_dir, epochs, batch_size, dataset, test_dir=None, filter_exp=5,
+          enc_blocks=(1, 1, 1, 1), dec_blocks=(1, 1, 1, 1), checkpoint=None):
+    num_filters = 2 ** filter_exp
+    checkpoint_dir = os.path.join(output_dir, "checkpoints")
+    os.makedirs(checkpoint_dir, exist_ok=True)
 
-    optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule, beta_1=0.9, beta_2=0.999)
+    train_dataset, val_dataset = get_datasets(dataset, batch_size, val_split=0.1)
 
-    if saved_model_path is not None and os.path.exists(saved_model_path):
-        logging.debug("Loading Saved Model")
-        custom_objects = {
-            'PSNRMetric': lambda: PSNRMetric(max_val=1.0),
-            'PSNRLoss': PSNRLoss(max_val=1.0),
-        }
-
-        with tf.keras.utils.custom_object_scope(custom_objects):
-            model = tf.keras.models.load_model(saved_model_path, compile=False)
+    keras.utils.set_random_seed(123)
+    if checkpoint:
+        logger.info("Loading %s", checkpoint)
+        model = load_model(checkpoint, model_name, num_filters)
     else:
-        logging.debug("Building Model")
-        if model_name == "Dynamic_PlainNet":
-            model = Dynamic_PlainNet.DYNUnet(input_size, enc_blocks, dec_blocks, 1, 2**int(filter_exp))
-        elif model_name == "Dynamic_UNet_simple":
-            model = Dynamic_UNet_simple.DYNUnet(input_size, enc_blocks, dec_blocks, 1, 2**int(filter_exp))
-        elif model_name == "Megvii":
-            model = Megvii.DYNUnet(input_size, enc_blocks, dec_blocks, 2**int(filter_exp))
-        elif model_name == "MoDeNet":
-            model = MoDeNet.DYNUnet(input_size, enc_blocks, dec_blocks, 1, 2**int(filter_exp))
-        elif model_name == "NOAHTCV":
-            model = NOAHTCV.Unet(input_size, 2**int(filter_exp))
-        elif model_name == "PlainNet":
-            model = PlainNet.DYNUnet(input_size, enc_blocks, dec_blocks, 1, 2**int(filter_exp))
-        elif model_name == "SplitterNet":
-            model = SplitterNet.DYNUnet(input_size, 2**int(filter_exp))
-        elif model_name == "ResNet_18":
-            model = ResNet_18.ResNet18_Denoiser(input_size)
-    
+        model = build_model(model_name, num_filters=num_filters, enc_blocks=enc_blocks, dec_blocks=dec_blocks)
     model.summary()
 
-    loss = PSNRLoss()
-    psnr_metric = PSNRMetric(max_val=1.0)
-    ssim_metric = SSIMMetric(max_val=1.0)
-
-    modelcheckpoint = tf.keras.callbacks.ModelCheckpoint(
-                        filepath=os.path.join(CHECKPOINT_PATH, "model_{epoch:02d}.h5"),
-                        monitor='val_ssim_metric',
-                        save_best_only=False,
-                        save_weights_only=False,
-                        mode='max',
-                        verbose=1)
+    lr_schedule = keras.optimizers.schedules.CosineDecay(
+        INITIAL_LEARNING_RATE,
+        decay_steps=int(train_dataset.cardinality()) * epochs,
+        alpha=FINAL_LEARNING_RATE / INITIAL_LEARNING_RATE,
+    )
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate=lr_schedule),
+        loss=PSNRLoss(max_val=1.0),
+        metrics=[PSNRMetric(max_val=1.0), SSIMMetric(max_val=1.0), "mean_squared_error"],
+    )
 
     callbacks = [
-        modelcheckpoint,
+        keras.callbacks.ModelCheckpoint(os.path.join(checkpoint_dir, "model_{epoch:02d}.keras"), verbose=1),
         PrintLearningRate(),
     ]
+    model.fit(train_dataset, epochs=epochs, callbacks=callbacks, validation_data=val_dataset)
 
-    model.compile(optimizer=optimizer, loss=loss, metrics=[psnr_metric, ssim_metric, 'mean_squared_error'])
+    model_path = os.path.join(output_dir, "trained_model.keras")
+    logger.info("Saving model to %s", model_path)
+    model.save(model_path)
+
+    if test_dir:
+        evaluate_model(model, test_dir)
+    return model
 
 
-    train_dataset.cache().prefetch(buffer_size=tf.data.AUTOTUNE)
-    model.fit(train_dataset, epochs=int(epochs), callbacks=callbacks, validation_data=val_dataset)
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--model", required=True, choices=MODEL_NAMES)
+    parser.add_argument("--dataset", required=True, help="Training data directory (see dataloader.py for supported layouts)")
+    parser.add_argument("--output-dir", required=True, help="Where checkpoints and the trained model are written")
+    parser.add_argument("--test-dir", help="Optional test set evaluated after training")
+    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--filter-exp", type=int, default=5, help="Number of filters = 2**filter_exp (default: 5)")
+    parser.add_argument("--enc-blocks", type=parse_blocks, default=[1, 1, 1, 1], help="Blocks per encoder stage, e.g. 1,1,1,1")
+    parser.add_argument("--dec-blocks", type=parse_blocks, default=[1, 1, 1, 1], help="Blocks per decoder stage, e.g. 1,1,1,1")
+    parser.add_argument("--checkpoint", help="Resume from a .keras model or initialise from a .h5 weights file")
+    args = parser.parse_args()
 
-    logging.debug('Saving Model.')
-    model.save(TRAINED_MODEL_PATH, overwrite=True)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    train(args.model, args.output_dir, args.epochs, args.batch_size, args.dataset, args.test_dir,
+          args.filter_exp, args.enc_blocks, args.dec_blocks, args.checkpoint)
 
-    ####################################################################################################################################
-    # Evaluation
-    ####################################################################################################################################
-    
-    logging.debug('Evaluating model')
-    snr_values_denoised, ssim_values_denoised = evaluate_saved_model(model, test_set_dir)
-
-    logging.debug("SSIM values of denoised images: %s",ssim_values_denoised)
-    logging.debug("PSNR values of denoised images: %s",snr_values_denoised)
-
-    logging.debug('Finishing.')
 
 if __name__ == "__main__":
-    model_name = sys.argv[1]
-    epochs = sys.argv[2]
-    batch_size = sys.argv[3]
-    dir_path = sys.argv[4]
-    enc_blocks = json.loads(sys.argv[5])
-    dec_blocks = json.loads(sys.argv[6])
-    dataset_path = sys.argv[7]
-    test_set_dir = sys.argv[8]
-    filter_exp = sys.argv[9]
-    trained_path = sys.argv[10]
-    run(model_name, dir_path, epochs, batch_size, enc_blocks, dec_blocks, dataset_path, test_set_dir, filter_exp, trained_path)
+    main()

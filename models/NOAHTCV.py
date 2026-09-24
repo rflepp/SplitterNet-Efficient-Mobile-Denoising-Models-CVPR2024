@@ -1,48 +1,37 @@
-import tensorflow as tf
-from tensorflow.keras import layers
-import logging
+"""NOAHTCV: runner-up of the MAI 2021 real-time image denoising challenge."""
+import keras
+from keras import layers
 
-logging.basicConfig(level=logging.DEBUG)
+
+def conv(x, filters, strides=1, activation="relu"):
+    return layers.Conv2D(filters, kernel_size=3, strides=strides, padding="same", activation=activation)(x)
+
+
+def res_blk(x, mid_filters, filters):
+    y = conv(x, mid_filters)
+    y = conv(y, filters)
+    return layers.Add()([x, y])
+
 
 def Unet(input_shape=(None, None, 3), num_filters=16):
-    input = layers.Input(input_shape)
+    inputs = layers.Input(input_shape)
 
-    x1 = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(input)
-    x = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(x1)
-    x = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(x)
-    add1 = layers.Add()([x1, x])
+    x1 = conv(inputs, num_filters)
+    y = conv(x1, num_filters)
+    y = conv(y, num_filters)
+    add1 = layers.Add()([x1, y])
 
-    x2 = layers.Conv2D(num_filters, kernel_size=3, strides=2, padding='same')(add1)
-    x = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(x2)
-    x = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(x)
-    add2 = layers.Add()([x2, x])
+    add2 = res_blk(conv(add1, num_filters, strides=2, activation=None), num_filters, num_filters)
+    add3 = res_blk(conv(add2, num_filters, strides=2, activation=None), num_filters * 2, num_filters)
 
-    x3 = layers.Conv2D(num_filters, kernel_size=3, strides=2, padding='same')(add2)
-    x = layers.Conv2D(num_filters*2, kernel_size=3, strides=1, padding='same', activation='relu')(x3)
-    x = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(x)
-    add3 = layers.Add()([x3, x])
+    x = layers.Conv2DTranspose(num_filters, kernel_size=1, strides=2, padding="same")(add3)
+    x4 = conv(layers.Concatenate()([add2, x]), num_filters)
+    add4 = res_blk(x4, num_filters, num_filters)
 
-    x = tf.keras.layers.Conv2DTranspose(filters=num_filters, kernel_size=1, strides=2, padding='same')(add3)
+    x = layers.Conv2DTranspose(num_filters, kernel_size=1, strides=2, padding="same")(add4)
+    x5 = conv(layers.Concatenate()([add1, x]), num_filters)
+    add5 = res_blk(x5, num_filters, num_filters)
 
-    concat1 = tf.concat([add2, x], axis=3)
-
-    x4 = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(concat1)
-    x = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(x4)
-    x = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(x)
-    add4 = layers.Add()([x4, x])
-
-    x = tf.keras.layers.Conv2DTranspose(filters=num_filters, kernel_size=1, strides=2, padding='same')(add4)
-
-    concat2 = tf.concat([add1, x], axis=3)
-
-    x5 = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(concat2)
-    x = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(x5)
-    x = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(x)
-    add5 = layers.Add()([x5, x])
-
-    x = layers.Conv2D(num_filters, kernel_size=3, strides=1, padding='same', activation='relu')(add5)
-
-    x = layers.Conv2D(3, kernel_size=3, padding='same', activation=None)(x)
-    model = tf.keras.models.Model(inputs=[input], outputs=[input+x])
-
-    return model
+    x = conv(add5, num_filters)
+    x = conv(x, 3, activation=None)
+    return keras.Model(inputs=inputs, outputs=inputs + x, name="NOAHTCV")

@@ -1,98 +1,84 @@
-import tensorflow as tf
-import matplotlib.pyplot as plt
-import os
-import numpy as np
-import gc
+"""Evaluate a denoising model (PSNR / SSIM) on a test set.
+
+Example:
+    python evaluate.py model_weights/SplitterNet_MIDD_model.h5 path/to/test_set --model SplitterNet
+"""
+import argparse
 import logging
-from glob import glob
-from utils import pair_images, PSNR
 
-def run(saved_model_path, mode, dataset, create_model=False, model=None):
-    logging.basicConfig(level=logging.DEBUG)
+import keras
+import numpy as np
+import tensorflow as tf
 
-    if mode == "evaluate_saved_model":
-        evaluate_saved_model(saved_model_path, dataset)
+import utils  # noqa: F401  (registers custom losses/metrics for model loading)
+from dataloader import find_image_pairs
+from models import MODEL_NAMES, build_model
+from utils import PSNR
 
-def evaluate_saved_model(saved_model_path, test_set_dir):
-    logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
-    if isinstance(saved_model_path, str):
-        model = tf.keras.models.load_model(saved_model_path, compile=False)
-        model.compile()
-    else:
-        model = saved_model_path
-    model.summary()
 
-    original_images = []
-    denoised_images = []
+def load_model(path, model_name=None, num_filters=32):
+    """Load a ``.keras`` model, or build ``model_name`` and load ``.h5``/``.weights.h5`` weights into it."""
+    if path.endswith(".keras"):
+        return keras.models.load_model(path, compile=False)
+    if model_name is None:
+        raise ValueError(f"{path} contains weights only: pass the architecture with --model")
+    model = build_model(model_name, num_filters=num_filters)
+    model.load_weights(path)
+    return model
 
-    if test_set_dir == "/your/path/test_set/":
-        for directory in os.listdir(test_set_dir):
-            original_images_itter, denoised_images_itter = pair_images(test_set_dir+directory+"/test_set/original/", test_set_dir+directory+"/test_set/denoised/")
-            original_images.append(original_images_itter)
-            denoised_images.append(denoised_images_itter)
-        original_images = [item for sublist in original_images for item in sublist]
-        denoised_images = [item for sublist in denoised_images for item in sublist]
-    else:
-        original_images.extend(sorted(glob(os.path.join(test_set_dir+"/original/", "*"))))
-        denoised_images.extend(sorted(glob(os.path.join(test_set_dir+"/denoised/", "*"))))
 
-    snr_values_denoised = []
-    snr_values_original = []
-    ssim_values_denoised = []
-    ssim_values_original = []
+def read_image(path):
+    image = tf.io.decode_image(tf.io.read_file(path), channels=3, expand_animations=False)
+    return tf.cast(image, tf.float32).numpy() / 255.0
 
-    logging.debug(f"Length: {len(original_images)}")
 
-    # Iterate over the files and print their names
-    for i, file_name in enumerate(original_images):
-        if 'blurry' in file_name:
+def ssim(a, b):
+    return float(tf.image.ssim(a * 255.0, b * 255.0, max_val=255.0, filter_size=11, filter_sigma=1.5, k1=0.01, k2=0.03))
+
+
+def evaluate_model(model, test_dir):
+    """Return the mean PSNR and SSIM of the model's outputs on all image pairs in ``test_dir``."""
+    noisy_paths, clean_paths = find_image_pairs(test_dir)
+    logger.info("Evaluating on %d images", len(noisy_paths))
+
+    results = []
+    for noisy_path, clean_path in zip(noisy_paths, clean_paths):
+        if "blurry" in noisy_path:
             continue
         try:
-            denoised_file_name = denoised_images[i]
-            logging.debug(f"File: {file_name}")
-            logging.debug(f"File: {denoised_file_name}")
+            clean, noisy = read_image(clean_path), read_image(noisy_path)
+            denoised = np.asarray(model(noisy[None], training=False))[0]
+        except Exception as e:  # e.g. image size not supported by the architecture
+            logger.warning("Skipping %s: %s", noisy_path, e)
+            continue
 
-            image_gt = tf.io.read_file(denoised_file_name)
-            image_gt = tf.io.decode_png(image_gt, channels=3)
-            image_gt = tf.cast(image_gt, dtype=tf.float32) / 255.0
+        metrics = (PSNR(clean * 255, noisy * 255), PSNR(clean * 255, denoised * 255), ssim(clean, noisy), ssim(clean, denoised))
+        results.append(metrics)
+        logger.debug("%s: PSNR %.2f -> %.2f, SSIM %.4f -> %.4f", noisy_path, *metrics)
 
-            noisy_image = tf.io.read_file(file_name)
-            noisy_image = tf.io.decode_png(noisy_image, channels=3)
-            noisy_image = tf.cast(noisy_image, dtype=tf.float32) / 255.0
-            noisy_image = np.expand_dims(noisy_image, axis=0)
+    if not results:
+        raise RuntimeError(f"No images could be evaluated in {test_dir}")
+    psnr_noisy, psnr_denoised, ssim_noisy, ssim_denoised = np.mean(results, axis=0)
+    logger.info("PSNR: noisy %.3f, denoised %.3f", psnr_noisy, psnr_denoised)
+    logger.info("SSIM: noisy %.4f, denoised %.4f", ssim_noisy, ssim_denoised)
+    return psnr_denoised, ssim_denoised
 
-            denoised_image = model.predict(noisy_image)
-            denoised_image = np.squeeze(denoised_image)
 
-            value_psnr_noisy = PSNR(np.array(image_gt*255.0), np.array(noisy_image*255.0))
-            value_psnr_denoised = PSNR(np.array(image_gt*255.0), np.array(denoised_image*255.0))
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("model_path", help="Trained .keras model, or a .h5 weights file together with --model")
+    parser.add_argument("test_dir", help="Test set directory (see dataloader.py for supported layouts)")
+    parser.add_argument("--model", choices=MODEL_NAMES, help="Architecture to build when model_path contains only weights")
+    parser.add_argument("--filter-exp", type=int, default=5, help="Number of filters = 2**filter_exp (default: 5)")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Log per-image metrics")
+    args = parser.parse_args()
 
-            value_ssim_original = tf.image.ssim(np.array(image_gt*255), np.array(noisy_image*255),255.0,filter_size=11,filter_sigma=1.5,k1=0.01,k2=0.03,return_index_map=False).numpy()[0]
-            value_ssim_denoised = tf.image.ssim(np.array(image_gt*255), np.array(denoised_image*255),255.0,filter_size=11,filter_sigma=1.5,k1=0.01,k2=0.03,return_index_map=False).numpy()
-            
-            ssim_values_original = np.append(ssim_values_original, value_ssim_original)
-            ssim_values_denoised = np.append(ssim_values_denoised, value_ssim_denoised)
-            
-            snr_values_original = np.append(snr_values_original, value_psnr_noisy)
-            snr_values_denoised = np.append(snr_values_denoised, value_psnr_denoised)
-            logging.debug(f"Difference: {value_psnr_denoised-value_psnr_noisy}")
-            logging.debug(f"Value_ssim_original: {value_ssim_original}, Value_ssim_denoised: {value_ssim_denoised}")
-            logging.debug(f"Value_psnr_noisy: {value_psnr_noisy}, Value_psnr_denoised: {value_psnr_denoised}")
-            gc.collect()
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    model = load_model(args.model_path, args.model, 2 ** args.filter_exp)
+    evaluate_model(model, args.test_dir)
 
-        except Exception as e:
-            logging.info(f"An error occurred: {e}")
 
-    avg_denoised_psnr=np.mean(snr_values_denoised)
-    avg_denoised_ssim=np.mean(ssim_values_denoised)
-
-    avg_orig_psnr=np.mean(snr_values_original)
-    avg_orig_ssim=np.mean(ssim_values_original)
-    logging.info(f"avg_denoised_psnr: {avg_denoised_psnr}, avg_orig_psnr: {avg_orig_psnr}")
-    logging.info(f"avg_denoised_ssim: {avg_denoised_ssim}, avg_orig_ssim: {avg_orig_ssim}")
-
-    del model
-    tf.keras.backend.clear_session()
-    
-    return avg_denoised_psnr, avg_denoised_ssim
+if __name__ == "__main__":
+    main()

@@ -1,59 +1,43 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
-from keras.models import Model
+"""PlainNet: four-level U-Net built from the plain blocks of NAFNet (Chen et al., 2022)."""
+import keras
+from keras import layers, ops
 
-def double_conv(input, filters, pool=True):
-    net = layers.Conv2D(filters, kernel_size=1, strides=1, padding='same')(input)
-    net = layers.DepthwiseConv2D(kernel_size=3, strides=1, padding='same')(net) # native to be used?
-    net = layers.LeakyReLU()(net)
-    net = layers.Conv2D(filters, kernel_size=1, strides=1, padding='same')(net)
-    middle = input + net
-    net = layers.Conv2D(filters, kernel_size=1, strides=1, padding='same')(middle)
-    net = layers.LeakyReLU()(net)
-    net = layers.Conv2D(filters, kernel_size=1, strides=1, padding='same')(net)
-    net = middle + net
+
+def double_conv(inputs, filters, pool=True):
+    x = layers.Conv2D(filters, kernel_size=1)(inputs)
+    x = layers.DepthwiseConv2D(kernel_size=3, padding="same")(x)
+    x = layers.LeakyReLU()(x)
+    x = layers.Conv2D(filters, kernel_size=1)(x)
+    middle = inputs + x
+    x = layers.Conv2D(filters, kernel_size=1)(middle)
+    x = layers.LeakyReLU()(x)
+    x = layers.Conv2D(filters, kernel_size=1)(x)
+    x = middle + x
 
     if pool:
-        return net, layers.Conv2D(filters*2, kernel_size=1, strides=2, padding='same')(net)
-    else:
-        return net
+        return x, layers.Conv2D(filters * 2, kernel_size=1, strides=2, padding="same")(x)
+    return x
 
 
-def upconv_concat(net, filters, res_con):
-    net = layers.Conv2D(filters*4, kernel_size=1, padding='VALID', activation=None, strides=1)(net)
-    net = tf.nn.depth_to_space(net, block_size=2, data_format='NHWC')
-    net = net + res_con
-    return net
+def upconv_concat(x, filters, skip):
+    x = layers.Conv2D(filters * 4, kernel_size=1)(x)
+    return ops.depth_to_space(x, 2) + skip
 
 
-def UNet(input_size, base_filters=32):
-
+def UNet(input_shape=(None, None, 3), base_filters=32):
     s = base_filters
-    image = keras.Input(shape=input_size)
-    conv0 = layers.Conv2D(filters=s, kernel_size=3, padding="same")(image)
+    inputs = layers.Input(input_shape)
+    x = layers.Conv2D(s, kernel_size=3, padding="same")(inputs)
 
-    conv1, pool1 = double_conv(conv0, s)
-    conv2, pool2 = double_conv(pool1, s*2)
-    conv3, pool3 = double_conv(pool2, s*4)
-    conv4, pool4 = double_conv(pool3, s*8)
-    conv5 = double_conv(pool4, s*16, pool=False)
+    skips = []
+    for level in range(4):
+        skip, x = double_conv(x, s * 2 ** level)
+        skips.append(skip)
+    x = double_conv(x, s * 16, pool=False)
 
-    up6 = upconv_concat(conv5, s*8, conv4)
-    conv6 = double_conv(up6, s*8, pool=False)
+    for level in reversed(range(4)):
+        x = upconv_concat(x, s * 2 ** level, skips[level])
+        x = double_conv(x, s * 2 ** level, pool=False)
 
-    up7 = upconv_concat(conv6, s*4, conv3)
-    conv7 = double_conv(up7, s*4, pool=False)
-
-    up8 = upconv_concat(conv7, s*2, conv2)
-    conv8 = double_conv(up8, s*2, pool=False)
-
-    up9 = upconv_concat(conv8, s, conv1)
-    conv9 = double_conv(up9, s, pool=False)
-
-    conv_last = layers.Conv2D(3, kernel_size=3, padding='same', activation=None)(conv9)
-
-    model = Model(inputs=[image], outputs=[conv_last])
-
-    return model
-    
+    x = layers.Conv2D(3, kernel_size=3, padding="same")(x)
+    return keras.Model(inputs=inputs, outputs=x, name="PlainNet")

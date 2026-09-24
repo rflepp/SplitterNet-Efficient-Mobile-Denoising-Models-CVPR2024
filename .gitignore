@@ -19,3 +19,9 @@ evaluation_*/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Training / conversion outputs
+runs/
+*.keras
+*.tflite
+.pytest_cache/
